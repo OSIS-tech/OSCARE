@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OSIS Center - Cloud Connected</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <!-- QR Code Generator -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  
+  <!-- QR Code Scanner -->
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+
+  <!-- html2pdf for Export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+  <!-- FIREBASE SDK (Legacy Compat v8) -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Outfit', 'sans-serif'] },
+          colors: {
+            emerald: { 400: '#34d399', 500: '#10b981', 600: '#059669', 900: '#064e3b' },
+            dark: { 900: '#0f172a', 800: '#1e293b', 700: '#334155' }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body { background-color: #020617; color: #e2e8f0; overflow-x: hidden; }
+    
+    /* Glassmorphism */
+    .glass { background: rgba(30, 41, 59, 0.4); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.05); }
+    .glass-panel { background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.08); }
+    
+    .text-gradient { background: linear-gradient(to right, #34d399, #3b82f6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    
+    /* Page Transition */
+    .page-section { display: none; }
+    .page-section.active { display: block; animation: fadeIn 0.4s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* Loader */
+    .loading-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 100; display: flex; justify-content: center; align-items: center; flex-direction: column; }
+  </style>
+</head>
+<body class="antialiased min-h-screen relative">
+
+  <!-- Loading Screen -->
+  <div id="loadingScreen" class="loading-overlay">
+    <div class="w-16 h-16 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+    <p class="mt-4 text-emerald-400 font-bold">Menghubungkan ke Server...</p>
+  </div>
+
+  <!-- Background -->
+  <div class="fixed top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
+    <div class="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-emerald-600/20 rounded-full blur-[120px]"></div>
+    <div class="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-600/20 rounded-full blur-[120px]"></div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="fixed top-5 right-5 z-50 transform translate-x-full transition-transform duration-300">
+    <div class="glass-panel px-6 py-4 rounded-xl flex items-center gap-3 shadow-2xl border-l-4 border-emerald-500">
+      <i class="fas fa-check-circle text-emerald-400 text-xl"></i>
+      <div>
+        <h4 id="toastTitle" class="font-bold text-sm">Berhasil</h4>
+        <p id="toastMessage" class="text-xs text-gray-300">Operasi berhasil.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= LOGIN PAGE ================= -->
+  <section id="loginPage" class="page-section active min-h-screen flex items-center justify-center p-4">
+    <div class="glass-panel w-full max-w-md p-8 rounded-3xl shadow-2xl relative">
+      <div class="text-center mb-8">
+        <h1 class="text-3xl font-bold tracking-tight">OSIS Center</h1>
+        <p class="text-gray-400 mt-2 text-sm">Sistem Terintegrasi Cloud Database</p>
+      </div>
+
+      <form id="loginForm" onsubmit="handleLogin(event)" class="space-y-5">
+        <div>
+          <label class="text-xs font-semibold text-gray-400 uppercase ml-1">Email</label>
+          <input id="loginEmail" type="email" required class="w-full bg-[#0f172a]/50 border border-slate-700 rounded-xl py-3 px-4 focus:outline-none focus:border-emerald-500 text-sm">
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-gray-400 uppercase ml-1">Password</label>
+          <input id="loginPassword" type="password" required class="w-full bg-[#0f172a]/50 border border-slate-700 rounded-xl py-3 px-4 focus:outline-none focus:border-emerald-500 text-sm">
+        </div>
+        <button type="submit" class="w-full bg-gradient-to-r from-emerald-600 to-emerald-500 text-white font-bold py-3 rounded-xl shadow-lg hover:scale-[1.02] transition-transform">
+          Masuk
+        </button>
+      </form>
+      <div class="mt-6 text-center">
+        <button onclick="showPage('registerPage')" class="text-emerald-400 text-sm font-semibold hover:underline">Daftar Member Baru</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= REGISTER PAGE ================= -->
+  <section id="registerPage" class="page-section min-h-screen flex items-center justify-center p-4">
+    <div class="glass-panel w-full max-w-md p-8 rounded-3xl">
+      <button onclick="showPage('loginPage')" class="text-gray-400 hover:text-white mb-4"><i class="fas fa-arrow-left"></i> Kembali</button>
+      <h2 class="text-2xl font-bold mb-6">Daftar Member</h2>
+      <form onsubmit="handleRegister(event)" class="space-y-4">
+        <input id="regNama" type="text" required placeholder="Nama Lengkap" class="w-full bg-[#0f172a]/50 border border-slate-700 rounded-xl p-3 focus:border-emerald-500 outline-none">
+        <div class="grid grid-cols-2 gap-4">
+          <input id="regKelas" type="text" required placeholder="Kelas (X-A)" class="w-full bg-[#0f172a]/50 border border-slate-700 rounded-xl p-3 outline-none">
+          <input id="regWA" type="tel" required placeholder="No. WA" class="w-full bg-[#0f172a]/50 border border-slate-700 rounded-xl p-3 outline-none">
+        </div>
+        <input id="regEmail" type="email" required placeholder="Email" class="w-full bg-[#0f172a]/50 border border-slate-700 rounded-xl p-3 outline-none">
+        <input id="regPassword" type="password" required placeholder="Password" class="w-full bg-[#0f172a]/50 border border-slate-700 rounded-xl p-3 outline-none">
+        <select id="regDivisi" class="w-full bg-[#0f172a]/50 border border-slate-700 rounded-xl p-3 outline-none">
+          <option value="BPH">BPH</option>
+          <option value="KETAKWAAN">Ketakwaan</option>
+          <option value="BUDI PEKERTI">Budi Pekerti</option>
+          <option value="WAWASAN">Wawasan Kebangsaan dan Bela Negara</option>
+          <option value="PRESTASI">Prestasi Akademik</option>
+          <option value="DEMOKRASI">Demokrasi/Kepekaan Sosial</option>
+          <option value="KEWIRAUSAHAAN">Kreativitas Keterampilan dan Kewirausahaan</option>
+          <option value="OLAHRAGA">Jasmani dan Kesehatan Gizi</option>
+          <option value="BUDAYA">Sastra dan Budaya</option>
+          <option value="TIK">Teknologi Informasi dan Komunikasi</option>
+          <option value="BAHASA ASING">Komunikasi Bahasa Asing</option>
+        </select>
+        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl">Daftar</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- ================= MAIN APP ================= -->
+  <section id="mainApp" class="page-section min-h-screen pb-20">
+    <nav class="glass sticky top-0 z-40 border-b border-slate-700/50 px-6 py-4 flex justify-between items-center">
+      <div>
+        <h1 class="font-bold text-lg">OSIS Center</h1>
+        <p id="navRole" class="text-[10px] text-emerald-400 font-bold uppercase">Member</p>
+      </div>
+      <button onclick="logout()" class="text-gray-400 hover:text-red-400"><i class="fas fa-sign-out-alt"></i></button>
+    </nav>
+
+    <main class="px-4 md:px-8 py-6 max-w-7xl mx-auto">
+      
+      <!-- Welcome -->
+      <div class="glass-panel p-6 rounded-3xl mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
+        <div>
+          <h2 class="text-2xl font-bold">Halo, <span id="userDisplayName" class="text-gradient">User</span></h2>
+          <p class="text-gray-400 text-sm">Status: <span class="text-emerald-400 font-bold">Online (Cloud Sync)</span></p>
+        </div>
+        <div id="adminBadge" class="hidden px-4 py-2 bg-red-500/20 border border-red-500 text-red-400 rounded-full text-xs font-bold uppercase">
+          Administrator Access
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div class="glass-panel p-4 rounded-xl">
+          <p class="text-xs text-gray-400">Total Member</p>
+          <h3 id="statTotalMember" class="text-2xl font-bold">0</h3>
+        </div>
+        <div class="glass-panel p-4 rounded-xl">
+          <p class="text-xs text-gray-400">Hadir Hari Ini</p>
+          <h3 id="statHadir" class="text-2xl font-bold">0</h3>
+        </div>
+        <div class="glass-panel p-4 rounded-xl">
+          <p class="text-xs text-gray-400">Total Event</p>
+          <h3 id="statEvent" class="text-2xl font-bold">0</h3>
+        </div>
+        <div class="glass-panel p-4 rounded-xl">
+          <p class="text-xs text-gray-400">Total Poin</p>
+          <h3 id="statPoin" class="text-2xl font-bold">0</h3>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Left Area -->
+        <div class="lg:col-span-2 space-y-6">
+          
+          <!-- Scanner (Admin Only) -->
+          <div id="adminScanSection" class="glass-panel p-6 rounded-3xl hidden">
+            <h3 class="font-bold text-lg mb-4">Scanner Kamera</h3>
+            <div class="bg-black rounded-xl overflow-hidden relative" style="height: 300px;">
+              <div id="reader" class="w-full h-full object-cover"></div>
+              <div id="scanPlaceholder" class="absolute inset-0 flex flex-col items-center justify-center text-gray-500">
+                <button onclick="startScanner()" class="px-4 py-2 bg-emerald-600 text-white rounded-lg">Aktifkan Kamera</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Absensi Form (Member Only) -->
+          <div id="memberAbsenSection" class="glass-panel p-6 rounded-3xl">
+            <h3 class="font-bold text-lg mb-4">Form Absensi</h3>
+            <div class="space-y-3">
+              <select id="absenJenis" class="w-full bg-[#0f172a] border border-slate-700 rounded-xl p-3 outline-none">
+                <option>Rapat Rutin</option>
+                <option>Piket</option>
+                <option>Kegiatan Divisi</option>
+              </select>
+              <button onclick="submitAttendance()" class="w-full bg-gradient-to-r from-emerald-600 to-teal-500 py-3 rounded-xl font-bold text-white hover:shadow-lg">Kirim Absensi</button>
+              <button onclick="showMyQR()" class="w-full bg-slate-700 py-3 rounded-xl font-bold text-gray-200 hover:bg-slate-600 mt-2">Tampilkan QR Code Saya</button>
+            </div>
+          </div>
+
+          <!-- Chart -->
+          <div class="glass-panel p-6 rounded-3xl hidden md:block">
+            <h3 class="font-bold text-lg mb-4">Statistik Kehadiran</h3>
+            <canvas id="attendanceChart" height="200"></canvas>
+          </div>
+        </div>
+
+        <!-- Right Area -->
+        <div class="space-y-6">
+          
+          <!-- Events -->
+          <div class="glass-panel p-6 rounded-3xl h-full">
+            <div class="flex justify-between items-center mb-4">
+              <h3 class="font-bold text-lg">Event OSIS</h3>
+              <button id="btnAddEvent" onclick="openEventModal()" class="hidden text-xs bg-emerald-600 px-2 py-1 rounded text-white">+ Baru</button>
+            </div>
+            <div id="eventList" class="space-y-3 max-h-[400px] overflow-y-auto"></div>
+          </div>
+
+          <!-- Admin Data Table -->
+          <div id="adminDataSection" class="glass-panel p-6 rounded-3xl hidden">
+            <div class="flex justify-between items-center mb-4">
+              <h3 class="font-bold text-lg">Laporan Masuk</h3>
+              <button onclick="exportPDF()" class="text-xs bg-red-600 px-2 py-1 rounded text-white"><i class="fas fa-file-pdf"></i> PDF</button>
+            </div>
+            <div id="reportContainer" class="space-y-2 max-h-[300px] overflow-y-auto">
+               <!-- Reports injected here -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </section>
+
+  <!-- ================= MODALS ================= -->
+  <div id="qrModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur hidden">
+    <div class="glass-panel p-8 rounded-3xl max-w-sm w-full text-center">
+      <button onclick="closeModal('qrModal')" class="absolute top-4 right-4 text-white"><i class="fas fa-times"></i></button>
+      <h3 id="qrTitle" class="text-xl font-bold mb-4">QR Code</h3>
+      <div id="qrCodeDisplay" class="bg-white p-4 rounded-xl mx-auto inline-block"></div>
+      <p id="qrSubtext" class="mt-4 text-sm text-gray-300">Tunjukkan ini untuk verifikasi.</p>
+    </div>
+  </div>
+
+  <div id="eventModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur hidden">
+    <div class="glass-panel p-8 rounded-3xl max-w-md w-full">
+      <h3 class="text-xl font-bold mb-4">Tambah Event</h3>
+      <form onsubmit="saveEvent(event)" class="space-y-3">
+        <input id="evtName" type="text" placeholder="Nama Event" class="w-full bg-[#0f172a] border border-slate-700 rounded-xl p-3" required>
+        <input id="evtDate" type="date" class="w-full bg-[#0f172a] border border-slate-700 rounded-xl p-3" required>
+        <input id="evtLoc" type="text" placeholder="Lokasi" class="w-full bg-[#0f172a] border border-slate-700 rounded-xl p-3" required>
+        <div class="flex gap-2 pt-2">
+          <button type="button" onclick="closeModal('eventModal')" class="flex-1 bg-slate-700 py-3 rounded-xl">Batal</button>
+          <button type="submit" class="flex-1 bg-emerald-600 py-3 rounded-xl text-white font-bold">Simpan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="scanResultModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur hidden">
+    <div class="glass-panel p-6 rounded-3xl max-w-sm w-full text-center">
+      <i class="fas fa-check-circle text-4xl text-emerald-400 mb-4"></i>
+      <h3 class="text-xl font-bold mb-2">Scan Berhasil</h3>
+      <div id="scanContent" class="text-left text-sm bg-[#0f172a] p-4 rounded-xl mb-4"></div>
+      <button onclick="closeModal('scanResultModal')" class="w-full bg-slate-700 py-2 rounded-xl">Tutup</button>
+    </div>
+  </div>
+
+  <!-- MAIN LOGIC -->
+  <script>
+    // ==================== KONFIGURASI FIREBASE ====================
+    // PASTE KONFIGURASI DARI CONSOLE FIREBASE ANDA DI SINI
+    const firebaseConfig = {
+      apiKey: "AIzaSyDciDCBU-3KjqDF8iLmGPxlEj9ExvkPOjU",
+      authDomain: "medkraf-ajf.firebaseapp.com",
+      databaseURL: "https://console.firebase.google.com/u/0/project/medkraf-ajf/database/medkraf-ajf-default-rtdb/data/~2F?fb_gclid=CjwKCAjwtvvPBhBuEiwAPMijr0ktlEPjqvFvbzJW8GAYdqslfnQhHpZd_jUKW5Pd39iVwiKIhYu46RoClrkQAvD_BwE&fb_utm_campaign=Cloud-SS-DR-Firebase-FY26-global-gsem-1713590&fb_utm_content=text-ad&fb_utm_medium=cpc&fb_utm_source=google&fb_utm_term=KW_firebase",
+      projectId: "medkraf-ajf",
+      storageBucket: "medkraf-ajf.firebasestorage.app",
+      messagingSenderId: "900976157091",
+      appId: "1:900976157091:web:643aec8b6cbe7513fb3a16"
+    };
+
+    // Initialize Firebase
+    if (!firebase.apps.length) {
+      try {
+        firebase.initializeApp(firebaseConfig);
+        console.log("Firebase Connected");
+      } catch (e) {
+        console.error("Firebase Config Error:", e);
+        alert("Gagal koneksi ke Firebase. Cek Config di kode!");
+      }
+    }
+    // =============================================================
+
+    const db = firebase.database();
+    let currentUser = null;
+    let html5QrcodeScanner = null;
+
+    // On Load
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        document.getElementById('loadingScreen').classList.add('hidden');
+      }, 1500);
+    });
+
+    /* ================= AUTHENTICATION ================= */
+    function handleLogin(e) {
+      e.preventDefault();
+      const email = document.getElementById('loginEmail').value;
+      const pass = document.getElementById('loginPassword').value;
+
+      // Hardcoded Admin Check
+      if (email === 'admin@osis.sch.id' && pass === 'administrator') {
+        currentUser = { nama: 'Administrator', role: 'admin', email: email };
+        loadDashboard();
+        return;
+      }
+
+      // Member Check from Firebase
+      db.ref('members').orderByChild('email').equalTo(email).once('value', snapshot => {
+        const data = snapshot.val();
+        if (data) {
+          const key = Object.keys(data)[0];
+          const member = data[key];
+          if (member.password === pass) {
+            currentUser = { ...member, id: key, role: 'member' };
+            loadDashboard();
+          } else {
+            showToast('Gagal', 'Password salah', 'error');
+          }
+        } else {
+          showToast('Gagal', 'Email tidak ditemukan', 'error');
+        }
+      });
+    }
+
+    function handleRegister(e) {
+      e.preventDefault();
+      const nama = document.getElementById('regNama').value;
+      const kelas = document.getElementById('regKelas').value;
+      const wa = document.getElementById('regWA').value;
+      const email = document.getElementById('regEmail').value;
+      const pass = document.getElementById('regPassword').value;
+      const divisi = document.getElementById('regDivisi').value;
+
+      const newMember = {
+        nama, kelas, wa, email, password: pass, divisi, points: 0, status: 'active'
+      };
+
+      db.ref('members').push(newMember, (error) => {
+        if (error) {
+          showToast('Gagal', 'Terjadi kesalahan database', 'error');
+        } else {
+          showToast('Berhasil', 'Akun berhasil dibuat!');
+          document.getElementById('regNama').value = ''; // Reset
+          showPage('loginPage');
+        }
+      });
+    }
+
+    function logout() {
+      currentUser = null;
+      showPage('loginPage');
+    }
+
+    /* ================= DASHBOARD & REALTIME UPDATES ================= */
+    function loadDashboard() {
+      showPage('mainApp');
+      document.getElementById('userDisplayName').innerText = currentUser.nama;
+      document.getElementById('navRole').innerText = currentUser.role === 'admin' ? 'System Administrator' : 'Member';
+
+      const isAdmin = currentUser.role === 'admin';
+
+      // Toggle UI
+      document.getElementById('adminScanSection').classList.toggle('hidden', !isAdmin);
+      document.getElementById('btnAddEvent').classList.toggle('hidden', !isAdmin);
+      document.getElementById('adminDataSection').classList.toggle('hidden', !isAdmin);
+      document.getElementById('adminBadge').classList.toggle('hidden', !isAdmin);
+      document.getElementById('memberAbsenSection').classList.toggle('hidden', isAdmin);
+
+      // Listen to Realtime Data Updates
+      db.ref('stats').on('value', snapshot => {
+        const data = snapshot.val() || { totalMember: 0, totalAttendance: 0, totalPoints: 0 };
+        document.getElementById('statTotalMember').innerText = data.totalMember || 0;
+        document.getElementById('statHadir').innerText = data.totalAttendance || 0;
+        document.getElementById('statPoin').innerText = data.totalPoints || 0;
+      });
+
+      db.ref('events').on('value', snapshot => {
+        const events = snapshot.val() || {};
+        document.getElementById('statEvent').innerText = Object.keys(events).length;
+        renderEvents(events);
+      });
+
+      if(isAdmin) {
+        // Listen for attendance reports
+        db.ref('attendance').limitToLast(50).on('value', snapshot => {
+          const data = snapshot.val() || {};
+          renderReports(data);
+        });
+      }
+
+      initChart();
+    }
+
+    /* ================= ATTENDANCE SYSTEM ================= */
+    function submitAttendance() {
+      if (!currentUser || currentUser.role === 'admin') {
+        showToast('Gagal', 'Admin tidak absen', 'error');
+        return;
+      }
+
+      const jenis = document.getElementById('absenJenis').value;
+      const now = new Date();
+      const hour = now.getHours();
+      const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const date = now.toISOString().split('T')[0];
+
+      let poin = 0;
+      let status = '';
+
+      if (hour >= 6 && hour < 12) { status = 'Tepat Waktu'; poin = 25; }
+      else if (hour >= 12 && hour < 16) { status = 'Terlambat'; poin = 15; }
+      else if (hour >= 16 && hour < 18) { status = 'Sangat Telat'; poin = 10; }
+      else { status = 'Diluar Jam'; poin = 0; }
+
+      // Push to Firebase
+      const record = {
+        userId: currentUser.id,
+        nama: currentUser.nama,
+        kelas: currentUser.kelas,
+        divisi: currentUser.divisi,
+        date, time, jenis, status, poin,
+        timestamp: firebase.database.ServerValue.TIMESTAMP
+      };
+
+      db.ref('attendance').push(record, error => {
+        if(error) showToast('Gagal', error.message, 'error');
+        else {
+          // Update Stats & User Points
+          db.ref(`members/${currentUser.id}/points`).transaction(current => (current || 0) + poin);
+          db.ref('stats/totalAttendance').transaction(current => (current || 0) + 1);
+          db.ref('stats/totalPoints').transaction(current => (current || 0) + poin);
+          showToast('Berhasil', `Absensi terkirim: ${status} (+${poin})`);
+        }
+      });
+    }
+
+    /* ================= QR & SCANNER ================= */
+    function showMyQR() {
+      const modal = document.getElementById('qrModal');
+      const container = document.getElementById('qrCodeDisplay');
+      container.innerHTML = '';
+      
+      // Encode User Data
+      const data = JSON.stringify({
+        type: 'member',
+        id: currentUser.id || currentUser.email,
+        nama: currentUser.nama,
+        kelas: currentUser.kelas
+      });
+
+      new QRCode(container, { text: data, width: 160, height: 160 });
+      modal.classList.remove('hidden');
+    }
+
+    function startScanner() {
+      document.getElementById('scanPlaceholder').classList.add('hidden');
+      html5QrcodeScanner = new Html5Qrcode("reader");
+      const config = { fps: 10, qrbox: 250 };
+      
+      html5QrcodeScanner.start({ facingMode: "environment" }, config, onScanSuccess)
+      .catch(err => alert("Gagal akses kamera: " + err));
+    }
+
+    function onScanSuccess(decodedText) {
+      html5QrcodeScanner.pause();
+      try {
+        const data = JSON.parse(decodedText);
+        if (data.type === 'member') {
+          // Simulasi Absen via Scan (Admin melakukan)
+          const now = new Date();
+          const record = {
+            userId: data.id, nama: data.nama, kelas: data.kelas,
+            date: now.toISOString().split('T')[0], time: now.toLocaleTimeString(),
+            jenis: 'Scan Admin', status: 'Hadir', poin: 25
+          };
+          // Save to Firebase
+          db.ref('attendance').push(record);
+          db.ref('stats/totalAttendance').transaction(c => (c||0)+1);
+          
+          const modal = document.getElementById('scanResultModal');
+          document.getElementById('scanContent').innerHTML = `
+            <p>Nama: <strong>${data.nama}</strong></p>
+            <p>Kelas: ${data.kelas}</p>
+            <p class="text-emerald-400 mt-2">Absensi berhasil diinput!</p>
+          `;
+          modal.classList.remove('hidden');
+        }
+      } catch (e) {
+        alert("QR Code tidak valid");
+      }
+    }
+
+    /* ================= EVENTS & ADMIN ================= */
+    function renderEvents(events) {
+      const list = document.getElementById('eventList');
+      list.innerHTML = '';
+      Object.keys(events).forEach(key => {
+        const e = events[key];
+        const div = document.createElement('div');
+        div.className = 'bg-[#0f172a]/50 p-3 rounded-lg border border-slate-700 flex justify-between items-center';
+        div.innerHTML = `
+          <div>
+            <h4 class="font-bold text-sm">${e.name}</h4>
+            <p class="text-xs text-gray-500">${e.date} | ${e.location}</p>
+          </div>
+          ${currentUser.role === 'admin' ? `<button onclick="deleteEvent('${key}')" class="text-red-400"><i class="fas fa-trash"></i></button>` : ''}
+        `;
+        list.appendChild(div);
+      });
+    }
+
+    function saveEvent(e) {
+      e.preventDefault();
+      const newEvent = {
+        name: document.getElementById('evtName').value,
+        date: document.getElementById('evtDate').value,
+        location: document.getElementById('evtLoc').value
+      };
+      db.ref('events').push(newEvent);
+      closeModal('eventModal');
+      e.target.reset();
+    }
+
+    function deleteEvent(key) {
+      if(confirm('Hapus event?')) db.ref('events/'+key).remove();
+    }
+
+    function renderReports(reports) {
+      const container = document.getElementById('reportContainer');
+      container.innerHTML = '';
+      // Convert to array and reverse to show newest first
+      const reportsArr = Object.entries(reports).reverse();
+      
+      reportsArr.forEach(([key, r]) => {
+        const div = document.createElement('div');
+        div.className = 'bg-[#0f172a]/50 p-3 rounded border border-slate-700 text-xs';
+        div.innerHTML = `
+          <div class="flex justify-between">
+            <strong class="text-white">${r.nama}</strong>
+            <span class="text-emerald-400 font-bold">+${r.poin}</span>
+          </div>
+          <p class="text-gray-400">${r.date} - ${r.time}</p>
+          <p class="text-gray-500">${r.jenis} (${r.status})</p>
+          <button onclick="deleteReport('${key}')" class="text-red-500 mt-1 hover:underline">Hapus</button>
+        `;
+        container.appendChild(div);
+      });
+      }
+
+    function deleteReport(key) {
+      db.ref('attendance/'+key).remove();
+    }
+
+    function exportPDF() {
+      const container = document.getElementById('reportContainer');
+      const element = document.createElement('div');
+      element.innerHTML = `<h2 style="text-align:center">Laporan Absensi OSIS</h2>` + container.innerHTML;
+      html2pdf().from(element).save('Laporan_Osis.pdf');
+    }
+
+    /* ================= UI UTILS ================= */
+    function showPage(id) {
+      document.querySelectorAll('.page-section').forEach(el => el.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+    }
+    function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+    function openEventModal() { document.getElementById('eventModal').classList.remove('hidden'); }
+    
+    function showToast(title, msg, type='success') {
+      const toast = document.getElementById('toast');
+      document.getElementById('toastTitle').innerText = title;
+      document.getElementById('toastMessage').innerText = msg;
+      toast.classList.remove('translate-x-full');
+      setTimeout(() => toast.classList.add('translate-x-full'), 3000);
+    }
+
+    function initChart() {
+      const ctx = document.getElementById('attendanceChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: ['Sen','Sel','Rab','Kam','Jum'],
+          datasets: [{
+            label: 'Hadir',
+            data: [10, 15, 8, 20, 12],
+            borderColor: '#10b981', tension: 0.4, fill: true, backgroundColor: 'rgba(16,185,129,0.1)'
+          }]
+        },
+        options: { responsive: true, plugins: { legend: {display:false} }, scales: { y: { grid: {color:'rgba(255,255,255,0.05)'}, ticks: {color:'#94a3b8'} }, x: { display:false } } }
+      });
+    }
+  </script>
+</body>
+</html>
